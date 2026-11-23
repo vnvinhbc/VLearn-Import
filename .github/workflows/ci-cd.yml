@@ -73,6 +73,8 @@ jobs:
         run: |
           set -euo pipefail
           rsync -az --delete \
+            --no-owner \
+            --no-group \
             --exclude='.git/' \
             --exclude='.venv/' \
             --exclude='.env' \
