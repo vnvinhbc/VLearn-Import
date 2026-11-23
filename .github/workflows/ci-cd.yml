@@ -62,6 +62,11 @@ jobs:
           DEPLOY_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
           echo "===== DEPLOY USER ====="
           echo "User: $VPS_USER"
 
@@ -79,11 +84,6 @@ jobs:
             -o ConnectTimeout=10 \
             "$VPS_USER@$VPS_HOST" \
             'echo "SSH SUCCESS"; whoami; hostname'
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
 
       - name: Sync source to server
         env:
