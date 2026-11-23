@@ -1,0 +1,106 @@
+name: VLearn Importer CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: importer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    name: Lint and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install app and test tools
+        run: |
+          python -m pip install -e .
+          python -m pip install ruff
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Smoke check
+        run: python -m vlearn_importer check
+
+  deploy:
+    name: Deploy to EC2 (SSH)
+    needs: ci
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare SSH
+        env:
+          DEPLOY_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Sync source to server
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          rsync -az --delete \
+            --exclude='.git/' \
+            --exclude='.venv/' \
+            --exclude='.env' \
+            --exclude='.env.*' \
+            --exclude='__pycache__/' \
+            --exclude='*.pyc' \
+            --chmod=Du=rwx,Dg=rx,Dg+s,Do=,Fu=rw,Fg=r,Fo= \
+            -e 'ssh -i ~/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes' \
+            ./ "$VPS_USER@$VPS_HOST:/opt/vlearn-importer/current/"
+
+      - name: Install dependencies and restart
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -euo pipefail
+          ssh -i ~/.ssh/id_ed25519 \
+            -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+            "$VPS_USER@$VPS_HOST" 'bash -se' <<'REMOTE'
+          set -euo pipefail
+          cd /opt/vlearn-importer/current
+          if [ ! -x .venv/bin/python ]; then
+            python3 -m venv .venv
+          fi
+          .venv/bin/python -m pip install --disable-pip-version-check --no-cache-dir -e .
+          .venv/bin/python -m vlearn_importer check
+          sudo -n /usr/bin/systemctl restart vlearn-importer.service
+          sleep 2
+          /usr/bin/systemctl is-active --quiet vlearn-importer.service
+          echo 'EC2 deploy successful'
+          REMOTE

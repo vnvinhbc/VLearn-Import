@@ -1,0 +1,26 @@
+[Unit]
+Description=VLearn TOEIC Import Worker
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=vlearn
+Group=vlearn
+WorkingDirectory=/opt/vlearn-importer/current
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONDONTWRITEBYTECODE=1
+EnvironmentFile=/etc/vlearn-importer/worker.env
+ExecStart=/opt/vlearn-importer/current/.venv/bin/python -m vlearn_importer worker
+Restart=always
+RestartSec=10
+TimeoutStopSec=45
+MemoryMax=550M
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/vlearn-importer
+
+[Install]
+WantedBy=multi-user.target
