@@ -56,6 +56,8 @@ jobs:
 
       - name: Prepare SSH
         env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
           DEPLOY_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
           DEPLOY_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
         run: |
