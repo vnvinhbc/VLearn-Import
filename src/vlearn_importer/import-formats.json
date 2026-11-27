@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "maxRows": 200,
+  "maxFileBytes": 5242880,
+  "kinds": {
+    "TOEIC": {
+      "label": "Câu hỏi TOEIC",
+      "columns": ["group_key", "part", "title", "passage_1_title", "passage_1", "passage_2_title", "passage_2", "passage_3_title", "passage_3", "transcript", "image_id", "audio_id", "question", "option_a", "option_b", "option_c", "option_d", "correct_answer", "explanation", "difficulty"]
+    },
+    "VOCABULARY": {
+      "label": "Từ vựng",
+      "columns": ["term", "meaning", "part_of_speech", "ipa", "example", "example_translation", "topic", "difficulty"]
+    },
+    "GRAMMAR": {
+      "label": "Ngữ pháp",
+      "columns": ["title", "topic", "explanation", "structure", "examples", "common_mistakes", "question", "option_a", "option_b", "option_c", "option_d", "correct_answer", "question_explanation", "difficulty"]
+    }
+  }
+}
